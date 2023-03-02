@@ -10,8 +10,8 @@ class RedisClient {
   }
 
   isAlive() {
-    //return this.isAliveFlag;
-    return this.client.connected;
+    return this.isAliveFlag;
+    //return this.client.connected;
   }
 
   async get(key) {
