@@ -6,27 +6,27 @@ class RedisClient {
     this.isAliveFlag = false;
     this.client = redis.createClient();
     this.client.on('error', (err) => console.log(err));
-    this.client.on('ready', () => this.isAliveFlag = true);
+    this.client.get = util.promisify(this.client.get);
+    this.client.set = util.promisify(this.client.set);
+    this.client.del = util.promisify(this.client.del);
+    this.isAliveFlag = true;
   }
 
   isAlive() {
     return this.isAliveFlag;
-    //return this.client.connected;
+    // return this.client.connected;
   }
 
   async get(key) {
-    this.client.get = util.promisify(this.client.get);
     const value = await this.client.get(key);
     return value;
   }
 
   async set(key, value, duration) {
-    this.client.set = util.promisify(this.client.set);
     this.client.set(key, value, 'EX', duration);
   }
 
   async del(key) {
-    this.client.del = util.promisify(this.client.del);
     this.client.del(key);
   }
 }
