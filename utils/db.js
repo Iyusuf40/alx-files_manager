@@ -38,25 +38,38 @@ class DBClient {
 
   async findByColAndFilter(collection, key, value) {
     let result = null;
-    const filter = JSON.parse(`{\"${key}\":\"${value}\"}`)
+    const filter = JSON.parse(`{"${key}":"${value}"}`);
     if (collection === 'users') {
-      result = await this.usersCollection.findOne(filter)
+      result = await this.usersCollection.findOne(filter);
     } else if (collection === 'files') {
-      result = await this.filesCollection.findOne(filter)
+      result = await this.filesCollection.findOne(filter);
     }
-    return result
+    return result;
+  }
+
+  async find(collection, key, value) {
+    let result = null;
+    let filter = JSON.parse(`{"${key}":"${value}"}`);
+    if (!key) {
+      filter = {};
+    }
+    if (collection === 'users') {
+      result = await this.usersCollection.find(filter);
+    } else if (collection === 'files') {
+      result = await this.filesCollection.find(filter);
+    }
+    return result.toArray();
   }
 
   async saveUser(user) {
-    const reply = await this.usersCollection.insertOne(user)
-    return reply.ops[0]._id  // id of inserted user
+    const reply = await this.usersCollection.insertOne(user);
+    return reply.ops[0]._id; // id of inserted user
   }
 
   async saveFile(file) {
-    const reply = await this.filesCollection.insertOne(file)
-    return reply.ops[0]._id  // id of file
+    const reply = await this.filesCollection.insertOne(file);
+    return reply.ops[0]._id; // id of file
   }
-
 }
 
 const dbClient = new DBClient();
