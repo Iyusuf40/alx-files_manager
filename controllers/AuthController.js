@@ -20,14 +20,14 @@ export default class AuthController {
     }
     const token = uuidv4();
     const key = `auth_${token}`;
-    redisClient.set(key, user.email, 1440);
+    redisClient.set(key, user._id.toString(), 1440);
     return res.send({ token });
   }
 
   static async getDisconnect(req, res) {
     const token = req.get('X-Token');
-    const userEmail = await redisClient.get(`auth_${token}`);
-    const users = await dbClient.find('users', 'email', userEmail);
+    const userId = await redisClient.get(`auth_${token}`);
+    const users = await dbClient.find('users', '_id', userId);
     const user = users[0];
     if (!user) return res.status(401).send({ error: 'Unauthorized' });
     redisClient.del(`auth_${token}`);
