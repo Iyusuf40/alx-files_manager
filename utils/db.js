@@ -1,4 +1,4 @@
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const host = process.env.DB_HOST || 'localhost';
 const port = process.env.DB_PORT || 27017;
@@ -52,6 +52,9 @@ class DBClient {
     let filter = JSON.parse(`{"${key}":"${value}"}`);
     if (!key) {
       filter = {};
+    }
+    if (key === '_id') {
+      filter = { _id: ObjectId(value) };
     }
     if (collection === 'users') {
       result = await this.usersCollection.find(filter);
