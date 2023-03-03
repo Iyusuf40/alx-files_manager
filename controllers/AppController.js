@@ -6,7 +6,7 @@ export default class AppController {
     if (dbClient.isAlive() && redisClient.isAlive()) {
       return res.send({ redis: true, db: true });
     }
-    return res.status(500).send('storage not ready');
+    return res.status(500).send({error: 'storage not ready'});
   }
 
   static async getStats(req, res) {
