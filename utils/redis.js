@@ -3,18 +3,19 @@ import util from 'util';
 
 class RedisClient {
   constructor() {
-    this.isAliveFlag = false;
     this.client = redis.createClient();
     this.client.on('error', (err) => console.log(err));
     this.client.get = util.promisify(this.client.get);
     this.client.set = util.promisify(this.client.set);
     this.client.del = util.promisify(this.client.del);
-    this.isAliveFlag = true;
   }
 
   isAlive() {
-    return this.isAliveFlag;
-    // return this.client.connected;
+    if (this.client.stream.connecting) { // attempting connection
+      // return false if error occured else true
+      return !this.client.stream._hadError;
+    }
+    return this.client.connected;
   }
 
   async get(key) {
