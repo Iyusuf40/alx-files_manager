@@ -1,8 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import { promises } from 'fs'; // promises;
+import { promises } from 'fs';
 import { ObjectId } from 'mongodb';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
+import UsersController from './UsersController';
 
 const { open, mkdir } = promises;
 const folder = process.env.FOLDER_PATH || '/tmp/files_manager';
@@ -12,8 +13,7 @@ export default class FilesController {
     if (redisClient.isAlive() && dbClient.isAlive()) {
       const token = req.get('X-Token');
       const userId = await redisClient.get(`auth_${token}`);
-      const users = await dbClient.find('users', '_id', userId);
-      const user = users[0];
+      const user = await UsersController.getUser(userId);
       if (!user) return res.status(401).send({ error: 'Unauthorized' });
       const [isValid, data] = await FilesController.validateFile(req);
       if (!isValid) return res.status(400).send(data);
@@ -46,6 +46,60 @@ export default class FilesController {
       delete (reply.localPath);
       delete (reply._id);
       return res.status(201).send(reply);
+    }
+    return res.status(500).send({ error: 'storage unavailable' });
+  }
+
+  static async getShow(req, res) {
+    if (redisClient.isAlive() && dbClient.isAlive()) {
+      const fileId = req.params.id;
+      const token = req.get('X-Token');
+      const userId = await redisClient.get(`auth_${token}`);
+      const user = await UsersController.getUser(userId);
+      if (!user) return res.status(401).send({ error: 'Unauthorized' });
+      const file = await dbClient.findByColAndFilter('files', '_id', fileId);
+      if (!file) return res.status(401).send({ error: 'Not found' });
+      if (file.userId.toString() !== user._id.toString()) {
+        return res.status(404).send({ error: 'Not found' });
+      }
+      file.id = file._id;
+      delete (file._id);
+      delete (file.localPath);
+      return res.send(file);
+    }
+    return res.status(500).send({ error: 'storage unavailable' });
+  }
+
+  static async getIndex(req, res) {
+    if (redisClient.isAlive() && dbClient.isAlive()) {
+      const token = req.get('X-Token');
+      const userId = await redisClient.get(`auth_${token}`);
+      const user = await UsersController.getUser(userId);
+      if (!user) return res.status(401).send({ error: 'Unauthorized' });
+      let parentId = req.query.parentId || 0;
+      let page = Number(req.query.page) || 0;
+      page = page ? page * 20 : page;
+      if (parentId) {
+        try {
+          parentId = ObjectId(parentId);
+        } catch (err) {
+          if (err) parentId = Number(req.query.parentId) || 0;
+        }
+      }
+      const cursor = dbClient.filesCollection.aggregate([
+        { $match: { userId: ObjectId(user._id), parentId } },
+        { $skip: page },
+        { $limit: page + 20 },
+      ]);
+      const files = await cursor.toArray();
+      for (let i = 0; i < files.length; i += 1) {
+        const doc = files[i];
+        doc.id = doc._id;
+        delete (doc._id);
+        delete (doc.localPath);
+      }
+      cursor.close();
+      return res.send(files);
     }
     return res.status(500).send({ error: 'storage unavailable' });
   }
@@ -87,5 +141,10 @@ export default class FilesController {
 
   static async createDir(path) {
     return mkdir(path, { recursive: true });
+  }
+
+  static async getFile(fileId) {
+    const file = await dbClient.findByColAndFilter('files', '_id', fileId);
+    return file;
   }
 }

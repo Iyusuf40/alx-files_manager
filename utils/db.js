@@ -57,8 +57,10 @@ class DBClient {
   async find(collection, key, value) {
     let result = null;
     let filter = JSON.parse(`{"${key}":"${value}"}`);
-    if (!key) {
+    if (!key && !value) {
       filter = {};
+    } else if (!key && value) {
+      filter = value
     }
     if (key === '_id') {
       try {
@@ -72,7 +74,9 @@ class DBClient {
     } else if (collection === 'files') {
       result = await this.filesCollection.find(filter);
     }
-    return result.toArray();
+    const res = await result.toArray()
+    result.close() // result === cursor
+    return res;
   }
 
   async saveUser(user) {

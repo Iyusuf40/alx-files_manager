@@ -32,4 +32,9 @@ export default class UsersController {
   static hashPwd(password) {
     return sha1(password);
   }
+
+  static async getUser(userId) {
+    const user = await dbClient.findByColAndFilter('users', '_id', userId);
+    return user;
+  }
 }

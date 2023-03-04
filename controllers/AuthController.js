@@ -20,7 +20,7 @@ export default class AuthController {
     }
     const token = uuidv4();
     const key = `auth_${token}`;
-    redisClient.set(key, user._id.toString(), 1440);
+    redisClient.set(key, user._id.toString(), 86400);
     return res.send({ token });
   }
 
