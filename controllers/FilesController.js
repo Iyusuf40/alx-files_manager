@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { promises } from 'fs';
 import { ObjectId } from 'mongodb';
+import mime from 'mime-types';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 import UsersController from './UsersController';
@@ -102,6 +103,35 @@ export default class FilesController {
     return res.status(500).send({ error: 'storage unavailable' });
   }
 
+  static async getFile(req, res) {
+    if (redisClient.isAlive() && dbClient.isAlive()) {
+      const fileId = req.params.id;
+      const file = await FilesController.getFileById(fileId);
+      if (!file) return res.status(404).send({ error: 'Not found' });
+      /* if (file.isPublic) {
+
+      } */
+      const resp = await FilesController.getFileByIdAndUserId(req);
+      const found = resp[0];
+      if (!found && !file.isPublic) return res.status(404).send({ error: 'Not found' });
+      if (file.type === 'folder') {
+        return res.status(400).send(
+          { error: "A folder doesn't have content" },
+        );
+      }
+      const content = await FilesController.readFromPath(file.localPath);
+      if (content === null) return res.status(404).send({ error: 'Not found' });
+      const mimeT = mime.contentType(file.name);
+      if (mimeT) {
+        res.set('Content-Type', mimeT);
+      } else {
+        res.set('Content-Type', 'text/plain');
+      }
+      return res.send(content);
+    }
+    return res.status(500).send({ error: 'storage unavailable' });
+  }
+
   static async getFileByIdAndUserId(req) {
     const fileId = req.params.id;
     const token = req.get('X-Token');
@@ -193,11 +223,23 @@ export default class FilesController {
     });
   }
 
+  static async readFromPath(path) {
+    return open(path, 'r').then(async (fd) => {
+      const res = await fd.readFile();
+      fd.close();
+      return res;
+    })
+      .catch((err) => {
+        if (err) return null;
+        return null;
+      });
+  }
+
   static async createDir(path) {
     return mkdir(path, { recursive: true });
   }
 
-  static async getFile(fileId) {
+  static async getFileById(fileId) {
     const file = await dbClient.findByColAndFilter('files', '_id', fileId);
     return file;
   }
