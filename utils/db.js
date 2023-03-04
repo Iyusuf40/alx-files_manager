@@ -38,7 +38,14 @@ class DBClient {
 
   async findByColAndFilter(collection, key, value) {
     let result = null;
-    const filter = JSON.parse(`{"${key}":"${value}"}`);
+    let filter = JSON.parse(`{"${key}":"${value}"}`);
+    if (key === '_id') {
+      try {
+        filter = { _id: ObjectId(value) };
+      } catch (err) {
+        if (err) return null;
+      }
+    }
     if (collection === 'users') {
       result = await this.usersCollection.findOne(filter);
     } else if (collection === 'files') {
@@ -54,7 +61,11 @@ class DBClient {
       filter = {};
     }
     if (key === '_id') {
-      filter = { _id: ObjectId(value) };
+      try {
+        filter = { _id: ObjectId(value) };
+      } catch (err) {
+        if (err) return [];
+      }
     }
     if (collection === 'users') {
       result = await this.usersCollection.find(filter);
