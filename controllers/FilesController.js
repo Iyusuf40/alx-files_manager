@@ -58,7 +58,7 @@ export default class FilesController {
       const user = await UsersController.getUser(userId);
       if (!user) return res.status(401).send({ error: 'Unauthorized' });
       const file = await dbClient.findByColAndFilter('files', '_id', fileId);
-      if (!file) return res.status(401).send({ error: 'Not found' });
+      if (!file) return res.status(404).send({ error: 'Not found' });
       if (file.userId.toString() !== user._id.toString()) {
         return res.status(404).send({ error: 'Not found' });
       }
@@ -68,6 +68,60 @@ export default class FilesController {
       return res.send(file);
     }
     return res.status(500).send({ error: 'storage unavailable' });
+  }
+
+  static async putPublish(req, res) {
+    if (redisClient.isAlive() && dbClient.isAlive()) {
+      const [found, resp] = await FilesController.getFileByIdAndUserId(req);
+      if (!found) {
+        if (resp.error === 'Not found') return res.status(404).send(resp);
+        return res.status(401).send(resp);
+      }
+      const parsedResp = FilesController.serializeFile(resp);
+      parsedResp.isPublic = true;
+      await dbClient.updateOne('files',
+        { _id: ObjectId(parsedResp.id) }, { $set: { isPublic: true } });
+      return res.send(parsedResp);
+    }
+    return res.status(500).send({ error: 'storage unavailable' });
+  }
+
+  static async putUnPublish(req, res) {
+    if (redisClient.isAlive() && dbClient.isAlive()) {
+      const [found, resp] = await FilesController.getFileByIdAndUserId(req);
+      if (!found) {
+        if (resp.error === 'Not found') return res.status(404).send(resp);
+        return res.status(401).send(resp);
+      }
+      const parsedResp = FilesController.serializeFile(resp);
+      parsedResp.isPublic = false;
+      await dbClient.updateOne('files',
+        { _id: ObjectId(parsedResp.id) }, { $set: { isPublic: false } });
+      return res.send(parsedResp);
+    }
+    return res.status(500).send({ error: 'storage unavailable' });
+  }
+
+  static async getFileByIdAndUserId(req) {
+    const fileId = req.params.id;
+    const token = req.get('X-Token');
+    const userId = await redisClient.get(`auth_${token}`);
+    const user = await UsersController.getUser(userId);
+    if (!user) return [false, { error: 'Unauthorized' }];
+    const file = await dbClient.findByColAndFilter('files', '_id', fileId);
+    if (!file) return [false, { error: 'Not found' }];
+    if (file.userId.toString() !== user._id.toString()) {
+      return [false, { error: 'Not found' }];
+    }
+    return [true, file];
+  }
+
+  static serializeFile(fileObj) {
+    const file = { ...fileObj };
+    file.id = file._id;
+    delete (file._id);
+    delete (file.localPath);
+    return file;
   }
 
   static async getIndex(req, res) {

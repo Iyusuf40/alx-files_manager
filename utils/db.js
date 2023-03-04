@@ -60,7 +60,7 @@ class DBClient {
     if (!key && !value) {
       filter = {};
     } else if (!key && value) {
-      filter = value
+      filter = value;
     }
     if (key === '_id') {
       try {
@@ -74,9 +74,18 @@ class DBClient {
     } else if (collection === 'files') {
       result = await this.filesCollection.find(filter);
     }
-    const res = await result.toArray()
-    result.close() // result === cursor
+    const res = await result.toArray();
+    result.close(); // result === cursor
     return res;
+  }
+
+  async updateOne(collection, filter, value) {
+    if (collection === 'files') {
+      const resp = await this.filesCollection.updateOne(filter, value);
+      return resp;
+    }
+    const resp = await this.usersCollection.updateOne(filter, value);
+    return resp;
   }
 
   async saveUser(user) {
