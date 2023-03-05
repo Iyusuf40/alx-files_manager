@@ -2,9 +2,20 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises } from 'fs';
 import { ObjectId } from 'mongodb';
 import mime from 'mime-types';
+import Queue from 'bull';
+import path from 'path';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 import UsersController from './UsersController';
+
+export { dbClient };
+
+const fileQueue = new Queue('fileQueue');
+fileQueue.process(path.resolve('worker.js'));
+
+fileQueue.on('error', (err) => console.log(err));
+fileQueue.on('completed', (job, res) => console.log('comleted', job.id, res));
+fileQueue.on('failed', (job, err) => console.log('failed', job.id, err));
 
 const { open, mkdir } = promises;
 const folder = process.env.FOLDER_PATH || '/tmp/files_manager';
@@ -42,6 +53,7 @@ export default class FilesController {
         localPath: data.localPath,
       };
       const fileId = await dbClient.saveFile(reply);
+      fileQueue.add({ fileId, userId });
       reply.id = fileId;
       reply.parentId = reply.parentId.toString();
       delete (reply.localPath);
@@ -106,11 +118,9 @@ export default class FilesController {
   static async getFile(req, res) {
     if (redisClient.isAlive() && dbClient.isAlive()) {
       const fileId = req.params.id;
+      const { size } = req.query;
       const file = await FilesController.getFileById(fileId);
       if (!file) return res.status(404).send({ error: 'Not found' });
-      /* if (file.isPublic) {
-
-      } */
       const resp = await FilesController.getFileByIdAndUserId(req);
       const found = resp[0];
       if (!found && !file.isPublic) return res.status(404).send({ error: 'Not found' });
@@ -119,7 +129,13 @@ export default class FilesController {
           { error: "A folder doesn't have content" },
         );
       }
-      const content = await FilesController.readFromPath(file.localPath);
+      let content = null;
+      if (!size) {
+        content = await FilesController.readFromPath(file.localPath);
+      } else {
+        const PATH = `${file.localPath}_${size.toString()}`;
+        content = await FilesController.readFromPath(PATH);
+      }
       if (content === null) return res.status(404).send({ error: 'Not found' });
       const mimeT = mime.contentType(file.name);
       if (mimeT) {
@@ -142,6 +158,18 @@ export default class FilesController {
     if (!file) return [false, { error: 'Not found' }];
     if (file.userId.toString() !== user._id.toString()) {
       return [false, { error: 'Not found' }];
+    }
+    return [true, file];
+  }
+
+  static async getFileByUserIdAndFileId(userId, fileId) {
+    if (!userId || !fileId) return [false, null];
+    const user = await UsersController.getUser(userId);
+    if (!user) return [false, null];
+    const file = await dbClient.findByColAndFilter('files', '_id', fileId);
+    if (!file) return [false, null];
+    if (file.userId.toString() !== user._id.toString()) {
+      return [false, null];
     }
     return [true, file];
   }
