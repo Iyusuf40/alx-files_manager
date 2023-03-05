@@ -11,7 +11,7 @@ import UsersController from './UsersController';
 export { dbClient };
 
 const fileQueue = new Queue('fileQueue');
-fileQueue.process(path.resolve('worker.js'));
+fileQueue.process(1, path.resolve('worker.js'));
 
 fileQueue.on('error', (err) => console.log(err));
 fileQueue.on('completed', (job, res) => console.log('comleted', job.id, res));
@@ -53,7 +53,7 @@ export default class FilesController {
         localPath: data.localPath,
       };
       const fileId = await dbClient.saveFile(reply);
-      fileQueue.add({ fileId, userId });
+      fileQueue.add({ fileId, userId }, { removeOnComplete: true });
       reply.id = fileId;
       reply.parentId = reply.parentId.toString();
       delete (reply.localPath);
@@ -201,7 +201,7 @@ export default class FilesController {
       const cursor = dbClient.filesCollection.aggregate([
         { $match: { userId: ObjectId(user._id), parentId } },
         { $skip: page },
-        { $limit: page + 20 },
+        { $limit: 20 },
       ]);
       const files = await cursor.toArray();
       for (let i = 0; i < files.length; i += 1) {
