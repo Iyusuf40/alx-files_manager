@@ -1,6 +1,9 @@
 import sha1 from 'sha1';
 import redisClient from '../utils/redis';
 import dbClient from '../utils/db';
+import { userQueue } from '../worker';
+
+export { dbClient };
 
 export default class UsersController {
   static async postNew(req, res) {
@@ -14,6 +17,7 @@ export default class UsersController {
       const hashedPwd = UsersController.hashPwd(password);
       const user = { email, password: hashedPwd };
       const userId = await dbClient.saveUser(user);
+      userQueue.add({ userId });
       const response = { id: userId, email };
       return res.status(201).send(response);
     }
