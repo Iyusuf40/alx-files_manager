@@ -2,20 +2,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { promises } from 'fs';
 import { ObjectId } from 'mongodb';
 import mime from 'mime-types';
-import Queue from 'bull';
-import path from 'path';
+import { fileQueue } from '../worker';
 import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 import UsersController from './UsersController';
 
 export { dbClient };
-
-const fileQueue = new Queue('fileQueue');
-fileQueue.process(1, path.resolve('worker.js'));
-
-fileQueue.on('error', (err) => console.log(err));
-fileQueue.on('completed', (job, res) => console.log('comleted', job.id, res));
-fileQueue.on('failed', (job, err) => console.log('failed', job.id, err));
 
 const { open, mkdir } = promises;
 const folder = process.env.FOLDER_PATH || '/tmp/files_manager';

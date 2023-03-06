@@ -1,8 +1,15 @@
-import FilesController from './controllers/FilesController';
+// import FilesController from './controllers/FilesController';
 import imageThumbnail from 'image-thumbnail';
-import { dbClient } from './controllers/FilesController';
+import Queue from 'bull';
+const fileQueue = new Queue('fileQueue');
+export { fileQueue };
 
-function waitConnection() {
+fileQueue.on('error', (err) => console.log(err));
+fileQueue.on('completed', (job, res) => console.log('comleted', job.id, res));
+fileQueue.on('failed', (job, err) => console.log('failed', job.id, err));
+
+
+function waitConnection(dbClient) {
   return new Promise((resolve, reject) => {
     let i = 0;
     async function repeatFct() {
@@ -22,7 +29,10 @@ function waitConnection() {
 }
 
 export default async function worker(job) {
-  if (!dbClient.isAlive()) await waitConnection()
+  const mod = await import('./controllers/FilesController')
+  const FilesController = mod.default
+  const dbClient = mod.dbClient
+  if (!dbClient.isAlive()) await waitConnection(dbClient)
   const {fileId, userId} = job.data
   if (!fileId) return Promise.reject('Missing fileId')
   if (!userId) return Promise.reject('Missing userId')
@@ -42,3 +52,6 @@ export default async function worker(job) {
   })
   return Promise.resolve('success')
 }
+
+
+fileQueue.process(1, worker);
