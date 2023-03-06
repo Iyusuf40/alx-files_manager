@@ -1,13 +1,18 @@
-// import FilesController from './controllers/FilesController';
 import imageThumbnail from 'image-thumbnail';
 import Queue from 'bull';
 const fileQueue = new Queue('fileQueue');
 export { fileQueue };
 
-fileQueue.on('error', (err) => console.log(err));
-fileQueue.on('completed', (job, res) => console.log('comleted', job.id, res));
-fileQueue.on('failed', (job, err) => console.log('failed', job.id, err));
+const userQueue = new Queue('userQueue');
+export { userQueue };
 
+fileQueue.on('error', (err) => console.log(err));
+fileQueue.on('completed', (job, res) => console.log('comleted file job', job.id, res));
+fileQueue.on('failed', (job, err) => console.log('failed file job', job.id, err));
+
+userQueue.on('error', (err) => console.log(err));
+userQueue.on('completed', (job, res) => console.log('comleted user job', job.id, res));
+userQueue.on('failed', (job, err) => console.log('failed user job', job.id, err));
 
 function waitConnection(dbClient) {
   return new Promise((resolve, reject) => {
@@ -28,7 +33,7 @@ function waitConnection(dbClient) {
   });
 }
 
-export default async function worker(job) {
+async function fileWorker(job) {
   const mod = await import('./controllers/FilesController')
   const FilesController = mod.default
   const dbClient = mod.dbClient
@@ -53,5 +58,18 @@ export default async function worker(job) {
   return Promise.resolve('success')
 }
 
+async function userWorker(job) {
+  const mod = await import('./controllers/UsersController')
+  const usersController = mod.default
+  const dbClient = mod.dbClient
+  if (!dbClient.isAlive()) await waitConnection(dbClient)
+  const {userId} = job.data
+  if (!userId) return Promise.reject('Missing userId')
+  const user = await usersController.getUser(userId);
+  if (!user)  return Promise.reject('File not found')
+  console.log(`Welcome ${user.email}!`) 
+  return Promise.resolve('success')
+}
 
-fileQueue.process(1, worker);
+fileQueue.process(1, fileWorker);
+userQueue.process(1, userWorker);
