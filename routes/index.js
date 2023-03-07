@@ -2,7 +2,9 @@ const express = require('express');
 const { getStats, getStatus } = require('../controllers/AppController');
 const { postNew } = require('../controllers/UsersController');
 const { getConnect, getDisconnect, getMe } = require('../controllers/AuthController');
-const { postUpload } = require('../controllers/FilesController');
+const {
+  postUpload, getShow, getIndex, putPublish, putUnpublish,
+} = require('../controllers/FilesController');
 
 const router = express.Router();
 
@@ -69,6 +71,48 @@ router.post('/files', async (req, res) => {
     res.status(400).json(fileVerify);
   } else {
     res.status(201).json(fileVerify);
+  }
+});
+
+router.get('/files/:id', async (req, res) => {
+  const file = await getShow(req);
+  if (file.error === 'Unauthorized') {
+    res.status(401).json(file);
+  } else if (file.error === 'Not found') {
+    res.status(404).json(file);
+  } else {
+    res.json(file);
+  }
+});
+
+router.get('/files', async (req, res) => {
+  const files = await getIndex(req);
+  if (files && files.error === 'Unauthorized') {
+    res.status(401).json(files);
+  } else {
+    res.json(files);
+  }
+});
+
+router.put('/files/:id/publish', async (req, res) => {
+  const pub = await putPublish(req);
+  if (pub.error === 'Unauthorized') {
+    res.status(401).json(pub);
+  } else if (pub.error === 'Not found') {
+    res.status(404).json(pub);
+  } else {
+    res.json(pub);
+  }
+});
+
+router.put('/files/:id/unpublish', async (req, res) => {
+  const pub = await putUnpublish(req);
+  if (pub.error === 'Unauthorized') {
+    res.status(401).json(pub);
+  } else if (pub.error === 'Not found') {
+    res.status(404).json(pub);
+  } else {
+    res.json(pub);
   }
 });
 

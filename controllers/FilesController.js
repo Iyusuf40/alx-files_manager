@@ -22,12 +22,12 @@ async function saveFolder(req, user) {
   if (!name) return { error: 'Missing name' };
   if (!type) return { error: 'Missing type' };
   if (parentId) {
+    parentId = ObjectID(parentId);
     const file = await getFilefromParentId(parentId);
-    console.log(file);
     if (!file) return { error: 'Parent not found' };
     if (file.type !== 'folder') return { error: 'Parent is not a folder' };
   } else {
-    parentId = 0;
+    parentId = '0';
   }
   if (!isPublic) isPublic = false;
   const newFileObj = {
@@ -36,8 +36,8 @@ async function saveFolder(req, user) {
   const newFile = await dbClient.db.collection('files').insertOne(newFileObj);
   const res = newFile.ops[0];
   return {
-    userId: res.userId,
     id: res._id,
+    userId: res.userId,
     name: res.name,
     type: res.type,
     isPublic: res.isPublic,
@@ -60,11 +60,12 @@ async function saveFileOrImage(req, user) {
   if (!type) return { error: 'Missing type' };
   if (!data && (type !== 'folder')) return { error: 'Missing data' };
   if (parentId) {
+    parentId = ObjectID(parentId);
     const file = await getFilefromParentId(parentId);
     if (!file) return { error: 'Parent not found' };
     if (file.type !== 'folder') return { error: 'Parent is not a folder' };
   } else {
-    parentId = 0;
+    parentId = '0';
   }
   if (!isPublic) isPublic = false;
 
@@ -78,8 +79,8 @@ async function saveFileOrImage(req, user) {
   const newFile = await dbClient.db.collection('files').insertOne(newFileObj);
   const res = newFile.ops[0];
   return {
-    userId: res.userId,
     id: res._id,
+    userId: res.userId,
     name: res.name,
     type: res.type,
     isPublic: res.isPublic,
@@ -105,4 +106,109 @@ async function postUpload(req) {
   return { error: 'Unauthorized' };
 }
 
-module.exports = { postUpload };
+async function getFilefromId(Id) {
+  const file = await dbClient.db.collection('files').findOne({ _id: ObjectID(Id) });
+  return file;
+}
+
+async function getShow(req) {
+  const { id } = req.params;
+  const user = await getUserFromToken(req.header('X-Token'));
+  const file = await getFilefromId(id);
+  let res;
+  if (user && file) {
+    file.id = file._id;
+    delete file._id;
+    delete file.localPath;
+    res = file;
+  } else if (user) {
+    res = { error: 'Not found' };
+  } else {
+    res = { error: 'Unauthorized' };
+  }
+  return res;
+}
+
+async function getIndex(req) {
+  const user = await getUserFromToken(req.header('X-Token'));
+  if (user) {
+    let parentId = req.query.parentId || '0';
+    const page = req.query.page || '0';
+    let rPage;
+    if (parentId !== '0') {
+      parentId = ObjectID(parentId);
+      const pFile = await getFilefromParentId(parentId);
+      if (!pFile || (pFile.type !== 'folder')) return [];
+      rPage = dbClient.db.collection('files').aggregate([
+        { $match: { parentId } },
+        {
+          $facet: {
+            data: [{ $skip: page * 20 }, { $limit: 20 }],
+          },
+        }]);
+    } else {
+      rPage = dbClient.db.collection('files').aggregate([{
+        $facet: {
+          data: [{ $skip: page * 20 }, { $limit: 20 }],
+        },
+      }]);
+    }
+    const res = await rPage.toArray();
+    res[0].data.forEach((data) => {
+      // eslint-disable-next-line no-param-reassign
+      data.id = data._id;
+      // eslint-disable-next-line no-param-reassign
+      delete data._id;
+      // eslint-disable-next-line no-param-reassign
+      delete data.localPath;
+    });
+    console.log(res);
+    return res;
+  }
+  return { error: 'Unauthorized' };
+}
+
+async function putPublish(req) {
+  const user = await getUserFromToken(req.header('X-Token'));
+  const file = await getFilefromId(req.params.id);
+  let res;
+  if (user && file) {
+    await dbClient.db.collection('files').updateOne(
+      { _id: ObjectID(req.params.id) }, { $set: { isPublic: true } },
+    );
+    res = await getFilefromId(req.params.id);
+    res.id = res._id;
+    delete res._id;
+    delete res.localPath;
+  } else if (user) {
+    res = { error: 'Not found' };
+  } else {
+    res = { error: 'Unauthorized' };
+  }
+  return res;
+}
+
+async function putUnpublish(req) {
+  const user = await getUserFromToken(req.header('X-Token'));
+  const file = await getFilefromId(req.params.id);
+  let res;
+  if (user && file) {
+    await dbClient.db.collection('files').updateOne(
+      { _id: ObjectID(req.params.id) }, { $set: { isPublic: false } },
+    );
+    res = await getFilefromId(req.params.id);
+    console.log(res);
+    res.id = res._id;
+    delete res._id;
+    delete res.localPath;
+  } else if (user) {
+    res = { error: 'Not found' };
+  } else {
+    res = { error: 'Unauthorized' };
+  }
+  return res;
+}
+
+module.exports = {
+  postUpload, getShow, getIndex, putPublish, putUnpublish,
+};
