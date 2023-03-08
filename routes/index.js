@@ -3,7 +3,7 @@ const { getStats, getStatus } = require('../controllers/AppController');
 const { postNew } = require('../controllers/UsersController');
 const { getConnect, getDisconnect, getMe } = require('../controllers/AuthController');
 const {
-  postUpload, getShow, getIndex, putPublish, putUnpublish,
+  postUpload, getShow, getIndex, putPublish, putUnpublish, getFile,
 } = require('../controllers/FilesController');
 
 const router = express.Router();
@@ -115,5 +115,7 @@ router.put('/files/:id/unpublish', async (req, res) => {
     res.json(pub);
   }
 });
+
+router.get('/files/:id/data', getFile);
 
 module.exports = router;

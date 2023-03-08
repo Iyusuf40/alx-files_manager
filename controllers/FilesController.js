@@ -1,9 +1,14 @@
-const { writeFile, existsSync, mkdirSync } = require('fs');
+const {
+  writeFile, existsSync, mkdirSync, readFileSync,
+} = require('fs');
+const Bull = require('bull');
+const mime = require('mime-types');
 const uuid = require('uuid');
 const { ObjectID } = require('mongodb');
 const dbClient = require('../utils/db');
 const redisClient = require('../utils/redis');
 
+const Queue = Bull('fileQueue');
 async function getUserFromToken(token) {
   const userId = await redisClient.get(`auth_${token}`);
   const user = await dbClient.db.collection('users').findOne({ _id: ObjectID(userId) });
@@ -78,6 +83,9 @@ async function saveFileOrImage(req, user) {
   };
   const newFile = await dbClient.db.collection('files').insertOne(newFileObj);
   const res = newFile.ops[0];
+  if (type === 'image') {
+    Queue.add({ userId: res.userId, fileId: res._id });
+  }
   return {
     id: res._id,
     userId: res.userId,
@@ -209,6 +217,41 @@ async function putUnpublish(req) {
   return res;
 }
 
+async function getFile(req, res) {
+  const { size } = req.query;
+  console.log(size);
+  const user = await getUserFromToken(req.header('X-Token'));
+  const file = await getFilefromId(req.params.id);
+  console.log(file);
+  if (file && (file.isPublic === true || user) && file.type === 'file') {
+    const path = file.localPath;
+    // const contentType = mime.contentType(path);
+    const content = readFileSync(path);
+    res.set('Content-Type', mime.contentType(file.name));
+    res.send(content);
+  } else if (file && (file.isPublic === true || user) && file.type === 'image') {
+    const availableSizes = ['100', '250', '500'];
+    if (size && availableSizes.includes(size)) {
+      const path = `${file.localPath}_${size}`;
+      const content = readFileSync(path);
+      res.set('Content-Type', mime.contentType(file.name));
+      res.send(content);
+    } else if (!size) {
+      const path = `${file.localPath}`;
+      const content = readFileSync(path);
+      console.log(file);
+      console.log(mime.contentType(file.name));
+      res.set('Content-Type', mime.contentType(file.name));
+      res.send(content);
+    }
+    res.status(404).json({ error: 'Not found' });
+  } else if (file && file.isPublic === true && file.type === 'folder') {
+    res.status(400).json({ error: "A folder doesn't have content" });
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
+}
+
 module.exports = {
-  postUpload, getShow, getIndex, putPublish, putUnpublish,
+  postUpload, getShow, getIndex, putPublish, putUnpublish, getFile,
 };
