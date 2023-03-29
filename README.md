@@ -4,7 +4,8 @@ This is an ExpressJS app that exposes an API that mimics a virtual file system. 
 
 ## Installation
 Clone this repository
-`Run npm install`
+enter into the directory `cd alx-files_manager`
+and install dependencies `npm install`
 
 ### Note
 you have to have [redis](https://redis.io/docs/getting-started/installation/install-redis-on-linux/) and [mongodb](https://www.mongodb.com/docs/manual/tutorial/) installed locally to run this app
