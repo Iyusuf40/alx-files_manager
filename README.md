@@ -20,10 +20,12 @@ Returns the status of the API.
 GET /status  
 Response:
 
-`{
+```json
+{
   "redis": "true",
   "db": "true"
-}`
+}
+```
 
 ### Get Stats
 Returns the number of users and number of files.
@@ -31,10 +33,12 @@ Returns the number of users and number of files.
 GET /stats
 Response:
 
-`{
+```json
+{
   "users": 10,
   "files": 100
-}`
+}
+```
 
 ### Create User
 Creates a new user.
@@ -46,10 +50,12 @@ email: The email of the user (required).
 password: The password of the user (required).  
 Response:
 
-`{
+```json
+{
   "id": "user-id",
   "email": "user-email"
-}`
+}
+```
 
 ### Connect
 Logs the user in and creates a session using Redis and returns the session token.
@@ -57,9 +63,11 @@ Logs the user in and creates a session using Redis and returns the session token
 GET /connect
 Response:
 
+```json
 {
   "token": "your-session-token"
 }
+```
 
 ### Disconnect
 Logs a user out and deletes their session.  
@@ -78,13 +86,15 @@ parentId: The ID of the parent directory (optional), defaults to 0 - root.
 data: The data to store in the file (optional).  
 Response:  
 
-`{
+```json
+{
   "userId": "file-id",
   "name": "file-name",
   "type": "file-type",
   "parentId": "parent-directory-id",
   "isPublic": boolean,
-}`
+}
+```
 
 ### Get File
 Retrieves the details of a file by its ID. 
@@ -92,13 +102,15 @@ Retrieves the details of a file by its ID.
 GET /files/:id  
 Response:
 
-`{
+```json
+{
   "userId": "file-id",
   "name": "file-name",
   "type": "file-type",
   "parentId": "parent-directory-id",
   "isPublic": boolean,
-}`
+}
+```
 
 ### Publish File
 Makes a file public.
@@ -106,13 +118,15 @@ Makes a file public.
 PUT /files/:id/publish  
 Response:
 
-`{
+```json
+{
   "userId": "file-id",
   "name": "file-name",
   "type": "file-type",
   "parentId": "parent-directory-id",
   "isPublic": true,
-}`
+}
+```
 
 ### Unpublish File
 Makes a file private.
@@ -120,13 +134,15 @@ Makes a file private.
 PUT /files/:id/unpublish  
 Response:
 
-`{
+```json
+{
   "userId": "file-id",
   "name": "file-name",
   "type": "file-type",
   "parentId": "parent-directory-id",
   "isPublic": false,
-}`
+}
+```
 
 ### Get File Data
 Retrieves saved files contents.  
@@ -141,7 +157,8 @@ GET /files?page=number&parentId=number
 
 Response:
 
-`[
+```json
+[
   {
     "userId": "file-id",
     "name": "file-name",
@@ -150,7 +167,8 @@ Response:
     "isPublic": boolean,
   },
   ...
-]`
+]
+```
 
 ## AUTHORS
 [Yusuf Isyaku](https://github.com/Iyusuf40)  
